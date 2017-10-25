@@ -9,7 +9,9 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -17,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -37,6 +40,7 @@ public class AddProducts extends AppCompatActivity {
     Uri imageFile;
     String imgPath;
     DatabaseHandler db;
+    final int REQUEST_IMAGE_CAPTURE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,10 +63,20 @@ public class AddProducts extends AppCompatActivity {
 
     public void takeImg(View view) {
         Intent intentOpenCamera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        imageFile = Uri.fromFile(getOutputMediaFile());
-        intentOpenCamera.putExtra(MediaStore.EXTRA_OUTPUT, imageFile);
-        startActivityForResult(intentOpenCamera, 100);
+        if (intentOpenCamera.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = getOutputMediaFile();
+            } catch (IOException ex) {
 
+            }
+            if (photoFile != null) {
+                Log.v("mainActivity", "photo file " + photoFile);
+                imageFile = FileProvider.getUriForFile(this, "app.qadheeb.fatimah.inventoryapp", photoFile);
+                intentOpenCamera.putExtra(MediaStore.EXTRA_OUTPUT, imageFile);
+                startActivityForResult(intentOpenCamera, REQUEST_IMAGE_CAPTURE);
+            }
+        }
     }
 
     @Override
@@ -77,27 +91,22 @@ public class AddProducts extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == 100) {
-            if (resultCode == RESULT_OK) {
-                imgPath = imageFile.toString();
-                productImgTextView.setText(R.string.picture_taken_good);
-            }
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            imgPath = imageFile.toString();
+            productImgTextView.setText(R.string.picture_taken_good);
         }
+
     }
 
-    private static File getOutputMediaFile() {
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "InventoryApp");
-
-        if (!mediaStorageDir.exists()) {
-            if (!mediaStorageDir.mkdirs()) {
-                return null;
-            }
-        }
-
+    private File getOutputMediaFile() throws IOException {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        return new File(mediaStorageDir.getPath() + File.separator +
-                "IMG_" + timeStamp + ".jpg");
+        String imageFileName = "IMG_" + timeStamp + "_";
+        File imageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,
+                ".jpg",
+                imageDir);
+        return image;
     }
 
     public void saveButton(View view) {
